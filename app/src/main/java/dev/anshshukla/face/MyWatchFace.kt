@@ -91,7 +91,7 @@ class MyWatchFace : CanvasWatchFaceService() {
         private var mLoopAnimationForever: Boolean = false
         private var mCurrAnimationIdx: Int = 0
         private lateinit var mAnimationPaint: Paint
-        private lateinit var mAnimationBitmaps: Array<Bitmap>
+        private var mAnimationBitmaps: MutableList<Bitmap> = ArrayList()
 
         private lateinit var mBackgroundPaint: Paint
         private lateinit var mBackgroundBitmap: Bitmap
@@ -138,18 +138,16 @@ class MyWatchFace : CanvasWatchFaceService() {
 
         private fun initializeAnimation() {
             var imageNum = 0
-            val animationBitmaps: MutableList<Bitmap> = ArrayList()
             while(true) {
                 val resId = resources.getIdentifier("tongie_$imageNum", "drawable", packageName)
                 if (resId == 0) break
-                animationBitmaps.add(BitmapFactory.decodeResource(resources, resId))
+                mAnimationBitmaps.add(BitmapFactory.decodeResource(resources, resId))
                 imageNum++
             }
 
             mAnimationPaint = Paint().apply {
                 color = Color.BLACK
             }
-            mAnimationBitmaps = animationBitmaps.toTypedArray()
         }
 
         private fun initializeWatchFace() {
@@ -336,6 +334,7 @@ class MyWatchFace : CanvasWatchFaceService() {
             canvas.save()
             if(mAmbient) {
                 canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
+                mCurrAnimationIdx = 0
             } else if(mLoopAnimationForever) {
                 canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
                 mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
