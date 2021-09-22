@@ -28,7 +28,7 @@ import java.util.TimeZone
  * Updates rate in milliseconds for interactive mode. We update once a second to advance the
  * second hand.
  */
-private const val INTERACTIVE_UPDATE_RATE_MS = 1000
+private const val INTERACTIVE_UPDATE_RATE_MS = 20
 
 /**
  * Handler message id for updating the time periodically in interactive mode.
@@ -54,8 +54,8 @@ class MyWatchFace : CanvasWatchFaceService() {
         return Engine()
     }
 
-    private class EngineHandler(reference: MyWatchFace.Engine) : Handler(Looper.getMainLooper()) {
-        private val mWeakReference: WeakReference<MyWatchFace.Engine> = WeakReference(reference)
+    private class EngineHandler(reference: Engine) : Handler(Looper.getMainLooper()) {
+        private val mWeakReference: WeakReference<Engine> = WeakReference(reference)
 
         override fun handleMessage(msg: Message) {
             val engine = mWeakReference.get()
@@ -88,6 +88,11 @@ class MyWatchFace : CanvasWatchFaceService() {
         private lateinit var mHourHandPaint: Paint
         private lateinit var mHourHandBitmap: Bitmap
 
+        private var mDrawAnimation: Boolean = false
+        private var mCurrAnimationIdx: Int = 0
+        private lateinit var mAnimationPaint: Paint
+        private lateinit var mAnimationBitmaps: Array<Bitmap>
+
         private lateinit var mBackgroundPaint: Paint
         private lateinit var mBackgroundBitmap: Bitmap
         private lateinit var mAODBackgroundBitmap: Bitmap
@@ -118,6 +123,7 @@ class MyWatchFace : CanvasWatchFaceService() {
             mCalendar = Calendar.getInstance()
 
             initializeBackground()
+            initializeAnimation()
             initializeWatchFace()
         }
 
@@ -128,6 +134,22 @@ class MyWatchFace : CanvasWatchFaceService() {
             mBackgroundBitmap = BitmapFactory.decodeResource(resources, R.drawable.watchface)
 
             mAODBackgroundBitmap = BitmapFactory.decodeResource(resources, R.drawable.watchface_aod)
+        }
+
+        private fun initializeAnimation() {
+            var imageNum = 0
+            val animationBitmaps: MutableList<Bitmap> = ArrayList()
+            while(true) {
+                val resId = resources.getIdentifier("tongie_$imageNum", "drawable", packageName)
+                if (resId == 0) break
+                animationBitmaps.add(BitmapFactory.decodeResource(resources, resId))
+                imageNum++
+            }
+
+            mAnimationPaint = Paint().apply {
+                color = Color.BLACK
+            }
+            mAnimationBitmaps = animationBitmaps.toTypedArray()
         }
 
         private fun initializeWatchFace() {
@@ -260,6 +282,15 @@ class MyWatchFace : CanvasWatchFaceService() {
                 (mPinBitmap.width * pinScale).toInt(),
                 (mPinBitmap.height * pinScale).toInt(), true
             )
+
+            val animScale = width.toFloat() / mAnimationBitmaps[0].width.toFloat()
+            for(i in mAnimationBitmaps.indices) {
+                mAnimationBitmaps[i] = Bitmap.createScaledBitmap(
+                    mAnimationBitmaps[i],
+                    (mAnimationBitmaps[i].width * animScale).toInt(),
+                    (mAnimationBitmaps[i].height * animScale).toInt(), true
+                )
+            }
         }
 
         /**
@@ -288,6 +319,7 @@ class MyWatchFace : CanvasWatchFaceService() {
             mCalendar.timeInMillis = now
 
             drawBackground(canvas)
+            drawAnimation(canvas)
             drawWatchFace(canvas)
         }
 
@@ -303,14 +335,42 @@ class MyWatchFace : CanvasWatchFaceService() {
             }
         }
 
+        private fun shouldDrawAnimation(): Boolean {
+            val seconds = mCalendar.get(Calendar.SECOND)
+            if(seconds % 5 == 0) {
+                mDrawAnimation = true
+                mCurrAnimationIdx = 0
+            } else {
+                mDrawAnimation = true
+            }
+            return mDrawAnimation
+        }
+
+        private fun drawAnimation(canvas: Canvas) {
+            if(mAmbient) {
+                canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
+                return
+            }
+
+            if(shouldDrawAnimation() && mCurrAnimationIdx < mAnimationBitmaps.size) {
+                canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
+//                mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
+                mCurrAnimationIdx++
+            } else {
+                canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
+            }
+        }
+
         private fun drawWatchFace(canvas: Canvas) {
 
             /*
              * These calculations reflect the rotation in degrees per unit of time, e.g.,
              * 360 / 60 = 6 and 360 / 12 = 30.
              */
-            val seconds =
-                mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f
+            // Constantly moving seconds
+//            val seconds =
+//                mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f
+            val seconds = mCalendar.get(Calendar.SECOND)
             val secondsRotation = seconds * 6f
 
             val minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f
