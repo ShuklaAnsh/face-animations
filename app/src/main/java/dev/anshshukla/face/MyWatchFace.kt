@@ -88,7 +88,7 @@ class MyWatchFace : CanvasWatchFaceService() {
         private lateinit var mHourHandPaint: Paint
         private lateinit var mHourHandBitmap: Bitmap
 
-        private var mDrawAnimation: Boolean = false
+        private var mLoopAnimationForever: Boolean = false
         private var mCurrAnimationIdx: Int = 0
         private lateinit var mAnimationPaint: Paint
         private lateinit var mAnimationBitmaps: Array<Bitmap>
@@ -306,10 +306,7 @@ class MyWatchFace : CanvasWatchFaceService() {
                     // The user has started a different gesture or otherwise cancelled the tap.
                 }
                 WatchFaceService.TAP_TYPE_TAP ->
-                    // The user has completed the tap gesture.
-                    // TODO: Add code to handle the tap gesture.
-                    Toast.makeText(applicationContext, R.string.message, Toast.LENGTH_SHORT)
-                        .show()
+                    mCurrAnimationIdx = 0
             }
             invalidate()
         }
@@ -335,30 +332,21 @@ class MyWatchFace : CanvasWatchFaceService() {
             }
         }
 
-        private fun shouldDrawAnimation(): Boolean {
-            val seconds = mCalendar.get(Calendar.SECOND)
-            if(seconds % 5 == 0) {
-                mDrawAnimation = true
-                mCurrAnimationIdx = 0
-            } else {
-                mDrawAnimation = true
-            }
-            return mDrawAnimation
-        }
-
         private fun drawAnimation(canvas: Canvas) {
+            canvas.save()
             if(mAmbient) {
                 canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
-                return
-            }
-
-            if(shouldDrawAnimation() && mCurrAnimationIdx < mAnimationBitmaps.size) {
+            } else if(mLoopAnimationForever) {
                 canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
-//                mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
-                mCurrAnimationIdx++
+                mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
             } else {
-                canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
+                if(mCurrAnimationIdx < mAnimationBitmaps.size) {
+                    canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
+                    mCurrAnimationIdx ++
+                }
             }
+            canvas.restore()
+            invalidate()
         }
 
         private fun drawWatchFace(canvas: Canvas) {
