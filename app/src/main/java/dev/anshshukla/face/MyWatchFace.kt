@@ -18,7 +18,7 @@ import android.support.wearable.watchface.CanvasWatchFaceService
 import android.support.wearable.watchface.WatchFaceService
 import android.support.wearable.watchface.WatchFaceStyle
 import android.view.SurfaceHolder
-import android.widget.Toast
+import androidx.core.graphics.scale
 
 import java.lang.ref.WeakReference
 import java.util.Calendar
@@ -84,18 +84,20 @@ class MyWatchFace : CanvasWatchFaceService() {
 
         private lateinit var mMinuteHandPaint: Paint
         private lateinit var mMinuteHandBitmap: Bitmap
+        private lateinit var mMinuteHandAODBitmap: Bitmap
 
         private lateinit var mHourHandPaint: Paint
         private lateinit var mHourHandBitmap: Bitmap
+        private lateinit var mHourHandAODBitmap: Bitmap
 
-        private var mLoopAnimationForever: Boolean = false
+        private var mLoopAnimationForever: Boolean = true
         private var mCurrAnimationIdx: Int = 0
         private lateinit var mAnimationPaint: Paint
         private var mAnimationBitmaps: MutableList<Bitmap> = ArrayList()
 
-        private lateinit var mBackgroundPaint: Paint
-        private lateinit var mBackgroundBitmap: Bitmap
-        private lateinit var mAODBackgroundBitmap: Bitmap
+        private lateinit var mIndexPaint: Paint
+        private lateinit var mIndexBitmap: Bitmap
+        private lateinit var mAODForegroundPaint: Paint
 
         private var mAmbient: Boolean = false
         private var mLowBitAmbient: Boolean = false
@@ -128,22 +130,34 @@ class MyWatchFace : CanvasWatchFaceService() {
         }
 
         private fun initializeBackground() {
-            mBackgroundPaint = Paint().apply {
+            mIndexPaint = Paint().apply {
                 color = Color.BLACK
             }
-            mBackgroundBitmap = BitmapFactory.decodeResource(resources, R.drawable.watchface)
-
-            mAODBackgroundBitmap = BitmapFactory.decodeResource(resources, R.drawable.watchface_aod)
+            mIndexBitmap = BitmapFactory.decodeResource(resources, R.drawable.index)
         }
 
         private fun initializeAnimation() {
-            var imageNum = 0
-            while(true) {
-                val resId = resources.getIdentifier("tongie_$imageNum", "drawable", packageName)
-                if (resId == 0) break
-                mAnimationBitmaps.add(BitmapFactory.decodeResource(resources, resId))
-                imageNum++
-            }
+            Thread {
+                var imageNum = 0
+                while (true) {
+                    val imageNumStr = imageNum.toString().padStart(4, '0')
+                    val resId =
+                        resources.getIdentifier("cloud_$imageNumStr", "drawable", packageName)
+                    if (resId == 0) break
+
+                    val bitmap = BitmapFactory.decodeResource(resources, resId)
+                    if(mCenterX != 0F) {
+                    val scale = (mCenterX * 2) / bitmap.width.toFloat()
+                        mAnimationBitmaps.add(
+                            bitmap.scale(
+                                (bitmap.width * scale).toInt(),
+                                (bitmap.height * scale).toInt(), true
+                            )
+                        )
+                    }
+                    imageNum++
+                }
+            }.start()
 
             mAnimationPaint = Paint().apply {
                 color = Color.BLACK
@@ -167,10 +181,21 @@ class MyWatchFace : CanvasWatchFaceService() {
                 color = Color.BLACK
             }
 
-            mPinBitmap = BitmapFactory.decodeResource(resources, R.drawable.pin)
-            mSecondHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.secondhand)
-            mHourHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.hourhand)
-            mMinuteHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.minutehand)
+            mPinPaint = Paint().apply {
+                color = Color.BLACK
+            }
+
+            mAODForegroundPaint = Paint().apply {
+                color = Color.BLACK
+                alpha = 75
+            }
+
+            mPinBitmap = BitmapFactory.decodeResource(resources, R.drawable.pin_aod)
+            mSecondHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.second)
+            mHourHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.hour)
+            mMinuteHandBitmap = BitmapFactory.decodeResource(resources, R.drawable.minute)
+            mHourHandAODBitmap = BitmapFactory.decodeResource(resources, R.drawable.hour_aod)
+            mMinuteHandAODBitmap = BitmapFactory.decodeResource(resources, R.drawable.minute_aod)
         }
 
         override fun onDestroy() {
@@ -207,6 +232,7 @@ class MyWatchFace : CanvasWatchFaceService() {
         private fun updateWatchHandStyle() {
             if (mAmbient) {
                 mSecondHandPaint.color = Color.TRANSPARENT
+//                mSecondHandBitmap =
             } else {
                 mSecondHandPaint.color = Color.BLACK
             }
@@ -239,55 +265,58 @@ class MyWatchFace : CanvasWatchFaceService() {
             mCenterX = width / 2f
             mCenterY = height / 2f
 
-            val bgScale = width.toFloat() / mBackgroundBitmap.width.toFloat()
-            mBackgroundBitmap = Bitmap.createScaledBitmap(
-                mBackgroundBitmap,
-                (mBackgroundBitmap.width * bgScale).toInt(),
-                (mBackgroundBitmap.height * bgScale).toInt(), true
-            )
-
-            val aodScale = width.toFloat() / mAODBackgroundBitmap.width.toFloat()
-            mAODBackgroundBitmap = Bitmap.createScaledBitmap(
-                mAODBackgroundBitmap,
-                (mAODBackgroundBitmap.width * aodScale).toInt(),
-                (mAODBackgroundBitmap.height * aodScale).toInt(), true
+            val bgScale = width.toFloat() / mIndexBitmap.width.toFloat()
+            mIndexBitmap = mIndexBitmap.scale(
+                (mIndexBitmap.width * bgScale).toInt(),
+                (mIndexBitmap.height * bgScale).toInt(), true
             )
 
             val hourHandScale = width.toFloat() / mHourHandBitmap.width.toFloat()
-            mHourHandBitmap = Bitmap.createScaledBitmap(
-                mHourHandBitmap,
+            mHourHandBitmap = mHourHandBitmap.scale(
                 (mHourHandBitmap.width * hourHandScale).toInt(),
                 (mHourHandBitmap.height * hourHandScale).toInt(), true
             )
 
             val minuteHandScale = width.toFloat() / mMinuteHandBitmap.width.toFloat()
-            mMinuteHandBitmap = Bitmap.createScaledBitmap(
-                mMinuteHandBitmap,
+            mMinuteHandBitmap = mMinuteHandBitmap.scale(
                 (mMinuteHandBitmap.width * minuteHandScale).toInt(),
                 (mMinuteHandBitmap.height * minuteHandScale).toInt(), true
             )
 
+            val hourHandAODScale = width.toFloat() / mHourHandAODBitmap.width.toFloat()
+            mHourHandAODBitmap = mHourHandAODBitmap.scale(
+                (mHourHandAODBitmap.width * hourHandAODScale).toInt(),
+                (mHourHandAODBitmap.height * hourHandAODScale).toInt(), true
+            )
+
+            val minuteHandAODScale = width.toFloat() / mMinuteHandAODBitmap.width.toFloat()
+            mMinuteHandAODBitmap = mMinuteHandAODBitmap.scale(
+                (mMinuteHandAODBitmap.width * minuteHandAODScale).toInt(),
+                (mMinuteHandAODBitmap.height * minuteHandAODScale).toInt(), true
+            )
+
             val secondHandScale = width.toFloat() / mSecondHandBitmap.width.toFloat()
-            mSecondHandBitmap = Bitmap.createScaledBitmap(
-                mSecondHandBitmap,
+            mSecondHandBitmap = mSecondHandBitmap.scale(
                 (mSecondHandBitmap.width * secondHandScale).toInt(),
                 (mSecondHandBitmap.height * secondHandScale).toInt(), true
             )
 
             val pinScale = width.toFloat() / mPinBitmap.width.toFloat()
-            mPinBitmap = Bitmap.createScaledBitmap(
-                mPinBitmap,
+            mPinBitmap = mPinBitmap.scale(
                 (mPinBitmap.width * pinScale).toInt(),
                 (mPinBitmap.height * pinScale).toInt(), true
             )
 
-            val animScale = width.toFloat() / mAnimationBitmaps[0].width.toFloat()
-            for(i in mAnimationBitmaps.indices) {
-                mAnimationBitmaps[i] = Bitmap.createScaledBitmap(
-                    mAnimationBitmaps[i],
-                    (mAnimationBitmaps[i].width * animScale).toInt(),
-                    (mAnimationBitmaps[i].height * animScale).toInt(), true
-                )
+            if (mAnimationBitmaps.size > 0) {
+                Thread {
+                    val animScale = width.toFloat() / mAnimationBitmaps[0].width.toFloat()
+                    for (i in mAnimationBitmaps.indices) {
+                        mAnimationBitmaps[i] = mAnimationBitmaps[i].scale(
+                            (mAnimationBitmaps[i].width * animScale).toInt(),
+                            (mAnimationBitmaps[i].height * animScale).toInt(), true
+                        )
+                    }
+                }.start()
             }
         }
 
@@ -313,35 +342,32 @@ class MyWatchFace : CanvasWatchFaceService() {
             val now = System.currentTimeMillis()
             mCalendar.timeInMillis = now
 
-            drawBackground(canvas)
+            canvas.drawColor(Color.BLACK)
+
             drawAnimation(canvas)
-            drawWatchFace(canvas)
-        }
 
-        private fun drawBackground(canvas: Canvas) {
+            // draw Index(canvas)
+            canvas.drawBitmap(mIndexBitmap, 0f, 0f, mIndexPaint)
 
-            if (mAmbient && (mLowBitAmbient || mBurnInProtection)) {
-                canvas.drawColor(Color.BLACK)
-            } else if (mAmbient) {
-                canvas.drawColor(Color.BLACK) // remove after aod transparency fixed
-                canvas.drawBitmap(mAODBackgroundBitmap, 0f, 0f, mBackgroundPaint)
-            } else {
-                canvas.drawBitmap(mBackgroundBitmap, 0f, 0f, mBackgroundPaint)
+            // draw AOD foreground
+            if (mAmbient) {
+                canvas.drawPaint(mAODForegroundPaint)
             }
+
+            drawWatchFace(canvas)
         }
 
         private fun drawAnimation(canvas: Canvas) {
             canvas.save()
-            if(mAmbient) {
-                canvas.drawBitmap(mAnimationBitmaps[0], 0f, 0f, mAnimationPaint)
-                mCurrAnimationIdx = 0
-            } else if(mLoopAnimationForever) {
+            if (mAmbient) {
+                canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
+            } else if (mLoopAnimationForever) {
                 canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
                 mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
             } else {
-                if(mCurrAnimationIdx < mAnimationBitmaps.size) {
+                if (mCurrAnimationIdx < mAnimationBitmaps.size) {
                     canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
-                    mCurrAnimationIdx ++
+                    mCurrAnimationIdx++
                 }
             }
             canvas.restore()
@@ -355,9 +381,8 @@ class MyWatchFace : CanvasWatchFaceService() {
              * 360 / 60 = 6 and 360 / 12 = 30.
              */
             // Constantly moving seconds
-//            val seconds =
-//                mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f
-            val seconds = mCalendar.get(Calendar.SECOND)
+            val seconds =
+                mCalendar.get(Calendar.SECOND) + mCalendar.get(Calendar.MILLISECOND) / 1000f
             val secondsRotation = seconds * 6f
 
             val minutesRotation = mCalendar.get(Calendar.MINUTE) * 6f
@@ -371,10 +396,18 @@ class MyWatchFace : CanvasWatchFaceService() {
             canvas.save()
 
             canvas.rotate(hoursRotation, mCenterX, mCenterY)
-            canvas.drawBitmap(mHourHandBitmap, 0f, 0f, mMinuteHandPaint)
+            if(mAmbient) {
+                canvas.drawBitmap(mHourHandAODBitmap, 0f, 0f, mHourHandPaint)
+            } else {
+                canvas.drawBitmap(mHourHandBitmap, 0f, 0f, mHourHandPaint)
+            }
 
             canvas.rotate(minutesRotation - hoursRotation, mCenterX, mCenterY)
-            canvas.drawBitmap(mMinuteHandBitmap, 0f, 0f, mMinuteHandPaint)
+            if(mAmbient) {
+                canvas.drawBitmap(mMinuteHandAODBitmap, 0f, 0f, mMinuteHandPaint)
+            } else {
+                canvas.drawBitmap(mMinuteHandBitmap, 0f, 0f, mMinuteHandPaint)
+            }
 
             /*
              * Ensure the "seconds" hand is drawn only when we are in interactive mode.
@@ -388,7 +421,9 @@ class MyWatchFace : CanvasWatchFaceService() {
             /* Restore the canvas" original orientation. */
             canvas.restore()
 
-            canvas.drawBitmap(mPinBitmap, 0f, 0f, mPinPaint)
+            if (mAmbient) {
+                canvas.drawBitmap(mPinBitmap, 0f, 0f, mPinPaint)
+            }
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
