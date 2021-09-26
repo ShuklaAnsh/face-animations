@@ -4,6 +4,7 @@ import android.content.res.Resources
 import android.graphics.*
 import android.util.Log
 import androidx.core.graphics.scale
+import androidx.core.graphics.withTranslation
 import java.util.*
 
 open class WatchFaceDrawManager(
@@ -36,6 +37,8 @@ open class WatchFaceDrawManager(
     private lateinit var mIndexBitmap: Bitmap
     private lateinit var mAODForegroundPaint: Paint
 
+    private lateinit var mArcPaint: Paint
+
     override var isInitialized: Boolean = false
 
     override fun onDimensionsChange(dimensions: Dimensions) {
@@ -47,6 +50,7 @@ open class WatchFaceDrawManager(
     }
 
     private fun scaleBitmaps() {
+        mArcPaint.strokeWidth = deviceDimensions.width * 0.0445f
         Log.d(logTag, "scaleBitmaps()")
         val bgScale = deviceDimensions.width / mIndexBitmap.width.toFloat()
         mIndexBitmap = mIndexBitmap.scale(
@@ -100,6 +104,25 @@ open class WatchFaceDrawManager(
                 canvas.drawPaint(mAODForegroundPaint)
             }
             drawWatchFace(canvas, ambientMode)
+            val percentComplete = 0.51f;
+            val sizeRatio = 0.695f
+            val angleOffset = 3.65f
+            canvas.withTranslation(
+                x = deviceDimensions.width * 0.15f,
+                y = deviceDimensions.height * 0.15f
+            ) {
+                canvas.drawArc(
+                    0f,
+                    0f,
+                    deviceDimensions.width * sizeRatio,
+                    deviceDimensions.height * sizeRatio,
+                    180f + angleOffset,
+                    (180f - (angleOffset * 2)) * percentComplete,
+                    false,
+                    mArcPaint
+                )
+            }
+
         }
         return isInitialized
     }
@@ -177,6 +200,14 @@ open class WatchFaceDrawManager(
         mAODForegroundPaint = Paint().apply {
             color = Color.BLACK
             alpha = 75
+        }
+
+        mArcPaint = Paint().apply {
+            color = Color.WHITE
+            strokeCap = Paint.Cap.ROUND
+            strokeWidth = 20f
+            isAntiAlias = true
+            style = Paint.Style.STROKE
         }
 
         mIndexBitmap = BitmapFactory.decodeResource(resources, R.drawable.index)
