@@ -11,7 +11,7 @@ open class AnimationDrawManager(
     override var deviceDimensions: Dimensions
 ) :
     IDrawManager {
-    private val logTag = "MyWatchFace"
+    private val logTag = "AnimationDrawManager"
     init {
         initializeAnimationManager(resources, packageName)
     }

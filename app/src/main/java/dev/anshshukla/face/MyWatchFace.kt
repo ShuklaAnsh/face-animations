@@ -16,6 +16,14 @@ import android.view.SurfaceHolder
 import dev.anshshukla.face.ComplicationConfigActivity.ComplicationLocation
 import java.lang.ref.WeakReference
 import java.util.*
+import android.support.wearable.complications.ComplicationHelperActivity
+
+import android.content.Intent
+
+import android.content.ComponentName
+
+import android.app.PendingIntent
+import android.app.PendingIntent.CanceledException
 
 
 /**
@@ -151,7 +159,8 @@ class MyWatchFace : CanvasWatchFaceService() {
             mActiveComplicationDataSparseArray.put(complicationId, complicationData)
 
             // Updates correct ComplicationDrawable with updated data.
-            mComplicationDrawableSparseArray.get(complicationId).setComplicationData(complicationData)
+            mComplicationDrawableSparseArray.get(complicationId)
+                .setComplicationData(complicationData)
             invalidate()
         }
 
@@ -340,7 +349,14 @@ class MyWatchFace : CanvasWatchFaceService() {
                 WatchFaceService.TAP_TYPE_TOUCH_CANCEL -> {
                     // The user has started a different gesture or otherwise cancelled the tap.
                 }
-                WatchFaceService.TAP_TYPE_TAP -> mAnimationDrawManager.toggleAnimation()
+                WatchFaceService.TAP_TYPE_TAP -> {
+                    val tappedComplicationId = getTappedComplicationId(x, y)
+                    if (tappedComplicationId != -1) {
+                        onComplicationTap(tappedComplicationId)
+                    } else {
+                        mAnimationDrawManager.toggleAnimation()
+                    }
+                }
             }
             invalidate()
         }
@@ -375,8 +391,35 @@ class MyWatchFace : CanvasWatchFaceService() {
 
         // Fires PendingIntent associated with complication (if it has one).
         private fun onComplicationTap(complicationId: Int) {
-            // TODO: Step 5, onComplicationTap()
             Log.d(logTag, "onComplicationTap()")
+            val complicationData = mActiveComplicationDataSparseArray.get(complicationId)
+
+            if (complicationData != null) {
+                if (complicationData.tapAction != null) {
+                    try {
+                        complicationData.tapAction.send()
+                    } catch (e: CanceledException) {
+                        Log.e(logTag, "onComplicationTap() tap action error: $e")
+                    }
+                } else if (complicationData.type == ComplicationData.TYPE_NO_PERMISSION) {
+
+                    // Watch face does not have permission to receive complication data, so launch
+                    // permission request.
+                    val componentName = ComponentName(
+                        applicationContext,
+                        MyWatchFace::class.java
+                    )
+                    val permissionRequestIntent =
+                        ComplicationHelperActivity.createPermissionRequestHelperIntent(
+                            applicationContext, componentName
+                        )
+                    startActivity(permissionRequestIntent)
+                }
+            } else {
+                Log.d(logTag, "No PendingIntent for complication $complicationId.")
+            }
+
+
         }
 
         override fun onDraw(canvas: Canvas, bounds: Rect) {
@@ -395,7 +438,9 @@ class MyWatchFace : CanvasWatchFaceService() {
         }
 
         private fun drawComplications(canvas: Canvas, currentTimeMillis: Long) {
-            // TODO: Step 4, drawComplications()
+            for (complicationId in mComplicationIds) {
+                mComplicationDrawableSparseArray.get(complicationId).draw(canvas, currentTimeMillis)
+            }
         }
 
         override fun onVisibilityChanged(visible: Boolean) {
