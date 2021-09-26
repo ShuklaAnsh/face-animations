@@ -151,8 +151,7 @@ class MyWatchFace : CanvasWatchFaceService() {
             mActiveComplicationDataSparseArray.put(complicationId, complicationData)
 
             // Updates correct ComplicationDrawable with updated data.
-            val complicationDrawable = mComplicationDrawableSparseArray[complicationId]
-            complicationDrawable.setComplicationData(complicationData)
+            mComplicationDrawableSparseArray.get(complicationId).setComplicationData(complicationData)
             invalidate()
         }
 
@@ -197,6 +196,7 @@ class MyWatchFace : CanvasWatchFaceService() {
         }
 
         private fun initializeComplications() {
+            Log.d(logTag, "initializeComplications()")
             mActiveComplicationDataSparseArray = SparseArray(mComplicationIds.size)
             val topComplicationDrawable =
                 resources.getDrawable(
@@ -225,7 +225,6 @@ class MyWatchFace : CanvasWatchFaceService() {
             mComplicationDrawableSparseArray.put(mRightComplicationId, rightComplicationDrawable)
 
             setActiveComplications(*mComplicationIds)
-
         }
 
         override fun onDestroy() {
@@ -248,8 +247,8 @@ class MyWatchFace : CanvasWatchFaceService() {
             // screen's capabilities.
             var complicationDrawable: ComplicationDrawable?
 
-            for (idx in mComplicationIds.indices) {
-                complicationDrawable = mComplicationDrawableSparseArray.valueAt(idx)
+            for (complicationId in mComplicationIds) {
+                complicationDrawable = mComplicationDrawableSparseArray.get(complicationId)
                 if (complicationDrawable != null) {
                     complicationDrawable.setLowBitAmbient(mLowBitAmbient)
                     complicationDrawable.setBurnInProtection(mBurnInProtection)
@@ -311,7 +310,7 @@ class MyWatchFace : CanvasWatchFaceService() {
                     (horizontalOffset + sizeOfRoundComplications).toInt(),
                     (verticalOffset + sizeOfRoundComplications).toInt()
                 )
-            mComplicationDrawableSparseArray[mLeftComplicationId].bounds = leftBounds
+            mComplicationDrawableSparseArray.get(mLeftComplicationId).bounds = leftBounds
 
             val rightBounds =  // Left, Top, Right, Bottom
                 Rect(
@@ -321,7 +320,7 @@ class MyWatchFace : CanvasWatchFaceService() {
                     (verticalOffset + sizeOfRoundComplications).toInt()
                 )
 
-            mComplicationDrawableSparseArray[mRightComplicationId].bounds = rightBounds
+            mComplicationDrawableSparseArray.get(mRightComplicationId).bounds = rightBounds
 
             val dimensions = Dimensions(width, height)
             mWatchFaceDrawManager.onDimensionsChange(dimensions)
@@ -350,19 +349,17 @@ class MyWatchFace : CanvasWatchFaceService() {
          * Determines if tap inside a complication area or returns -1.
          */
         private fun getTappedComplicationId(x: Int, y: Int): Int {
-            var complicationId: Int
             var complicationData: ComplicationData?
             var complicationDrawable: ComplicationDrawable
             val currentTimeMillis = System.currentTimeMillis()
-            for (idx in mComplicationIds.indices) {
-                complicationId = mComplicationIds[idx]
-                complicationData = mActiveComplicationDataSparseArray.valueAt(idx)
+            for (complicationId in mComplicationIds) {
+                complicationData = mActiveComplicationDataSparseArray.get(complicationId)
                 if (complicationData != null
                     && complicationData.isActive(currentTimeMillis)
                     && complicationData.type != ComplicationData.TYPE_NOT_CONFIGURED
                     && complicationData.type != ComplicationData.TYPE_EMPTY
                 ) {
-                    complicationDrawable = mComplicationDrawableSparseArray.valueAt(idx)
+                    complicationDrawable = mComplicationDrawableSparseArray.get(complicationId)
                     val complicationBoundingRect = complicationDrawable.bounds
                     if (complicationBoundingRect.width() > 0) {
                         if (complicationBoundingRect.contains(x, y)) {

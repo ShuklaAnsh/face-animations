@@ -72,6 +72,10 @@
                 android:name="com.google.android.wearable.watchface.preview_circular"
                 android:resource="@drawable/preview" />
 
+            <meta-data
+                android:name="com.google.android.wearable.watchface.wearableConfigurationAction"
+                android:value="com.example.android.wearable.watchface.CONFIG_COMPLICATION"/>
+
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />
 
