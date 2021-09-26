@@ -99,11 +99,7 @@ open class WatchFaceDrawManager(
         if (isInitialized) {
             // draw Index(canvas)
             canvas.drawBitmap(mIndexBitmap, 0f, 0f, mIndexPaint)
-            // draw AOD foreground
-            if (ambientMode) {
-                canvas.drawPaint(mAODForegroundPaint)
-            }
-            drawWatchFace(canvas, ambientMode)
+
             val percentComplete = 0.51f;
             val sizeRatio = 0.695f
             val angleOffset = 3.65f
@@ -123,6 +119,13 @@ open class WatchFaceDrawManager(
                 )
             }
 
+            // draw AOD foreground
+            if (ambientMode) {
+                canvas.drawPaint(mAODForegroundPaint)
+            }
+
+            // draw hands
+            drawWatchFace(canvas, ambientMode)
         }
         return isInitialized
     }
@@ -199,7 +202,7 @@ open class WatchFaceDrawManager(
         }
         mAODForegroundPaint = Paint().apply {
             color = Color.BLACK
-            alpha = 75
+            alpha = 99
         }
 
         mArcPaint = Paint().apply {
