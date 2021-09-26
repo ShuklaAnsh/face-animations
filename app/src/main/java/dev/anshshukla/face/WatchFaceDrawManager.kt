@@ -2,13 +2,21 @@ package dev.anshshukla.face
 
 import android.content.res.Resources
 import android.graphics.*
+import android.util.Log
 import androidx.core.graphics.scale
 import java.util.*
 
-open class WatchFaceManager(calendar: Calendar, resources: Resources, override var mDeviceDimensions: Dimensions): IDrawableManager {
+open class WatchFaceDrawManager(
+    calendar: Calendar,
+    resources: Resources,
+    override var deviceDimensions: Dimensions
+) : IDrawManager {
+    private val logTag = "WatchFaceDrawManager"
+
     init {
         initializeWatchFaceManager(resources)
     }
+
     private var mCalendar = calendar
     private lateinit var mPinPaint: Paint
     private lateinit var mPinBitmap: Bitmap
@@ -28,53 +36,55 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
     private lateinit var mIndexBitmap: Bitmap
     private lateinit var mAODForegroundPaint: Paint
 
-    override var mInitialzed: Boolean = false
+    override var isInitialized: Boolean = false
 
     override fun onDimensionsChange(dimensions: Dimensions) {
-        if(dimensions == mDeviceDimensions || !mInitialzed) return
-        mDeviceDimensions = dimensions
+        Log.d(logTag, "onDimensionsChange()")
+        if (dimensions == deviceDimensions || !isInitialized) return
+        deviceDimensions = dimensions
 
         scaleBitmaps()
     }
 
     private fun scaleBitmaps() {
-        val bgScale = mDeviceDimensions.width / mIndexBitmap.width.toFloat()
+        Log.d(logTag, "scaleBitmaps()")
+        val bgScale = deviceDimensions.width / mIndexBitmap.width.toFloat()
         mIndexBitmap = mIndexBitmap.scale(
             (mIndexBitmap.width * bgScale).toInt(),
             (mIndexBitmap.height * bgScale).toInt(), true
         )
 
-        val hourHandScale = mDeviceDimensions.width / mHourHandBitmap.width.toFloat()
+        val hourHandScale = deviceDimensions.width / mHourHandBitmap.width.toFloat()
         mHourHandBitmap = mHourHandBitmap.scale(
             (mHourHandBitmap.width * hourHandScale).toInt(),
             (mHourHandBitmap.height * hourHandScale).toInt(), true
         )
 
-        val minuteHandScale = mDeviceDimensions.width / mMinuteHandBitmap.width.toFloat()
+        val minuteHandScale = deviceDimensions.width / mMinuteHandBitmap.width.toFloat()
         mMinuteHandBitmap = mMinuteHandBitmap.scale(
             (mMinuteHandBitmap.width * minuteHandScale).toInt(),
             (mMinuteHandBitmap.height * minuteHandScale).toInt(), true
         )
 
-        val hourHandAODScale = mDeviceDimensions.width / mHourHandAODBitmap.width.toFloat()
+        val hourHandAODScale = deviceDimensions.width / mHourHandAODBitmap.width.toFloat()
         mHourHandAODBitmap = mHourHandAODBitmap.scale(
             (mHourHandAODBitmap.width * hourHandAODScale).toInt(),
             (mHourHandAODBitmap.height * hourHandAODScale).toInt(), true
         )
 
-        val minuteHandAODScale = mDeviceDimensions.width / mMinuteHandAODBitmap.width.toFloat()
+        val minuteHandAODScale = deviceDimensions.width / mMinuteHandAODBitmap.width.toFloat()
         mMinuteHandAODBitmap = mMinuteHandAODBitmap.scale(
             (mMinuteHandAODBitmap.width * minuteHandAODScale).toInt(),
             (mMinuteHandAODBitmap.height * minuteHandAODScale).toInt(), true
         )
 
-        val secondHandScale = mDeviceDimensions.width / mSecondHandBitmap.width.toFloat()
+        val secondHandScale = deviceDimensions.width / mSecondHandBitmap.width.toFloat()
         mSecondHandBitmap = mSecondHandBitmap.scale(
             (mSecondHandBitmap.width * secondHandScale).toInt(),
             (mSecondHandBitmap.height * secondHandScale).toInt(), true
         )
 
-        val pinScale = mDeviceDimensions.width / mPinBitmap.width.toFloat()
+        val pinScale = deviceDimensions.width / mPinBitmap.width.toFloat()
         mPinBitmap = mPinBitmap.scale(
             (mPinBitmap.width * pinScale).toInt(),
             (mPinBitmap.height * pinScale).toInt(), true
@@ -82,7 +92,7 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
     }
 
     override fun draw(canvas: Canvas, ambientMode: Boolean): Boolean {
-        if(mInitialzed) {
+        if (isInitialized) {
             // draw Index(canvas)
             canvas.drawBitmap(mIndexBitmap, 0f, 0f, mIndexPaint)
             // draw AOD foreground
@@ -91,12 +101,12 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
             }
             drawWatchFace(canvas, ambientMode)
         }
-        return mInitialzed
+        return isInitialized
     }
 
     private fun drawWatchFace(canvas: Canvas, ambientMode: Boolean) {
-        val centerX = (mDeviceDimensions.width / 2).toFloat()
-        val centerY = (mDeviceDimensions.height / 2).toFloat()
+        val centerX = (deviceDimensions.width / 2).toFloat()
+        val centerY = (deviceDimensions.height / 2).toFloat()
         /*
          * These calculations reflect the rotation in degrees per unit of time, e.g.,
          * 360 / 60 = 6 and 360 / 12 = 30.
@@ -117,14 +127,14 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
         canvas.save()
 
         canvas.rotate(hoursRotation, centerX, centerY)
-        if(ambientMode) {
+        if (ambientMode) {
             canvas.drawBitmap(mHourHandAODBitmap, 0f, 0f, mHourHandPaint)
         } else {
             canvas.drawBitmap(mHourHandBitmap, 0f, 0f, mHourHandPaint)
         }
 
         canvas.rotate(minutesRotation - hoursRotation, centerX, centerY)
-        if(ambientMode) {
+        if (ambientMode) {
             canvas.drawBitmap(mMinuteHandAODBitmap, 0f, 0f, mMinuteHandPaint)
         } else {
             canvas.drawBitmap(mMinuteHandBitmap, 0f, 0f, mMinuteHandPaint)
@@ -148,6 +158,7 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
     }
 
     private fun initializeWatchFaceManager(resources: Resources) {
+        Log.d(logTag, "initializeWatchFaceManager()")
         mIndexPaint = Paint().apply {
             color = Color.BLACK
         }
@@ -176,13 +187,14 @@ open class WatchFaceManager(calendar: Calendar, resources: Resources, override v
         mHourHandAODBitmap = BitmapFactory.decodeResource(resources, R.drawable.hour_aod)
         mMinuteHandAODBitmap = BitmapFactory.decodeResource(resources, R.drawable.minute_aod)
 
-        if(mDeviceDimensions.width != 0) {
+        if (deviceDimensions.width != 0) {
             scaleBitmaps()
         }
-        mInitialzed = true
+        isInitialized = true
     }
 
     fun updateWatchHandStyle(ambientMode: Boolean, muteMode: Boolean) {
+        Log.d(logTag, "updateWatchHandStyle()")
         if (ambientMode) {
             mSecondHandPaint.color = Color.TRANSPARENT
         } else {

@@ -2,10 +2,16 @@ package dev.anshshukla.face
 
 import android.content.res.Resources
 import android.graphics.*
+import android.util.Log
 import androidx.core.graphics.scale
 
-open class AnimationManager(resources: Resources, packageName: String, override var mDeviceDimensions: Dimensions) :
-    IDrawableManager {
+open class AnimationDrawManager(
+    resources: Resources,
+    packageName: String,
+    override var deviceDimensions: Dimensions
+) :
+    IDrawManager {
+    private val logTag = "MyWatchFace"
     init {
         initializeAnimationManager(resources, packageName)
     }
@@ -14,9 +20,10 @@ open class AnimationManager(resources: Resources, packageName: String, override 
     private var mCurrAnimationIdx: Int = 0
     private lateinit var mAnimationPaint: Paint
     private var mAnimationBitmaps: MutableList<Bitmap> = ArrayList()
-    override var mInitialzed: Boolean = false
+    override var isInitialized: Boolean = false
 
     private fun initializeAnimationManager(resources: Resources, packageName: String) {
+        Log.d(logTag, "initializeAnimationManager()")
         Thread {
             var imageNum = 0
             while (true) {
@@ -26,8 +33,8 @@ open class AnimationManager(resources: Resources, packageName: String, override 
                 if (resId == 0) break
 
                 val bitmap = BitmapFactory.decodeResource(resources, resId)
-                if(mDeviceDimensions.width != 0) {
-                    val scale = mDeviceDimensions.width / bitmap.width.toFloat()
+                if (deviceDimensions.width != 0) {
+                    val scale = deviceDimensions.width / bitmap.width.toFloat()
                     mAnimationBitmaps.add(
                         bitmap.scale(
                             (bitmap.width * scale).toInt(),
@@ -37,7 +44,7 @@ open class AnimationManager(resources: Resources, packageName: String, override 
                 }
                 imageNum++
             }
-            mInitialzed = true
+            isInitialized = true
         }.start()
 
         mAnimationPaint = Paint().apply {
@@ -46,27 +53,27 @@ open class AnimationManager(resources: Resources, packageName: String, override 
     }
 
     override fun draw(canvas: Canvas, ambientMode: Boolean): Boolean {
-        if(mInitialzed) {
+        if (isInitialized) {
             canvas.save()
             if (mRunning && !ambientMode) {
                 canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
                 mCurrAnimationIdx = (mCurrAnimationIdx + 1) % mAnimationBitmaps.size // loop forever
-            }
-            else {
+            } else {
                 canvas.drawBitmap(mAnimationBitmaps[mCurrAnimationIdx], 0f, 0f, mAnimationPaint)
             }
             canvas.restore()
         }
-        return mRunning && mInitialzed
+        return mRunning && isInitialized
     }
 
     override fun onDimensionsChange(dimensions: Dimensions) {
-        if(dimensions == mDeviceDimensions) return
-        mDeviceDimensions = dimensions
+        Log.d(logTag, "onDimensionsChange()")
+        if (dimensions == deviceDimensions) return
+        deviceDimensions = dimensions
 
         if (mAnimationBitmaps.size > 0) {
             Thread {
-                val animScale = mDeviceDimensions.width / mAnimationBitmaps[0].width.toFloat()
+                val animScale = deviceDimensions.width / mAnimationBitmaps[0].width.toFloat()
                 for (i in mAnimationBitmaps.indices) {
                     mAnimationBitmaps[i] = mAnimationBitmaps[i].scale(
                         (mAnimationBitmaps[i].width * animScale).toInt(),
@@ -78,6 +85,7 @@ open class AnimationManager(resources: Resources, packageName: String, override 
     }
 
     fun toggleAnimation() {
+        Log.d(logTag, "toggleAnimation()")
         mRunning = !mRunning
     }
 }

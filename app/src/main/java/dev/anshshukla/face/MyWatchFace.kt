@@ -1,13 +1,8 @@
 package dev.anshshukla.face
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.graphics.Bitmap
+import android.content.*
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.Handler
@@ -16,12 +11,10 @@ import android.os.Message
 import android.support.wearable.watchface.CanvasWatchFaceService
 import android.support.wearable.watchface.WatchFaceService
 import android.support.wearable.watchface.WatchFaceStyle
+import android.util.Log
 import android.view.SurfaceHolder
-import androidx.core.graphics.scale
-
 import java.lang.ref.WeakReference
-import java.util.Calendar
-import java.util.TimeZone
+import java.util.*
 
 /**
  * Updates rate in milliseconds for interactive mode. We update once a second to advance the
@@ -48,6 +41,7 @@ private const val MSG_UPDATE_TIME = 0
  * https://codelabs.developers.google.com/codelabs/watchface/index.html#0
  */
 class MyWatchFace : CanvasWatchFaceService() {
+    private val logTag = "MyWatchFace"
 
     override fun onCreateEngine(): Engine {
         return Engine()
@@ -75,8 +69,8 @@ class MyWatchFace : CanvasWatchFaceService() {
         private var mCenterX: Float = 0F
         private var mCenterY: Float = 0F
 
-        private lateinit var mWatchFaceManager: WatchFaceManager
-        private lateinit var mAnimationManager: AnimationManager
+        private lateinit var mWatchFaceDrawManager: WatchFaceDrawManager
+        private lateinit var mAnimationDrawManager: AnimationDrawManager
 
         private var mAmbient: Boolean = false
         private var mLowBitAmbient: Boolean = false
@@ -93,6 +87,7 @@ class MyWatchFace : CanvasWatchFaceService() {
         }
 
         override fun onCreate(holder: SurfaceHolder) {
+            Log.d(logTag, "onCreate()")
             super.onCreate(holder)
 
             setWatchFaceStyle(
@@ -104,11 +99,12 @@ class MyWatchFace : CanvasWatchFaceService() {
             mCalendar = Calendar.getInstance()
 
             val dimensions = Dimensions((mCenterX * 2).toInt(), (mCenterX * 2).toInt())
-            mAnimationManager = AnimationManager(resources, packageName, dimensions)
-            mWatchFaceManager = WatchFaceManager(mCalendar, resources, dimensions)
+            mAnimationDrawManager = AnimationDrawManager(resources, packageName, dimensions)
+            mWatchFaceDrawManager = WatchFaceDrawManager(mCalendar, resources, dimensions)
         }
 
         override fun onDestroy() {
+            Log.d(logTag, "onDestroy()")
             mUpdateTimeHandler.removeMessages(MSG_UPDATE_TIME)
             super.onDestroy()
         }
@@ -132,7 +128,7 @@ class MyWatchFace : CanvasWatchFaceService() {
             super.onAmbientModeChanged(inAmbientMode)
             mAmbient = inAmbientMode
 
-            mWatchFaceManager.updateWatchHandStyle(mAmbient, mMuteMode)
+            mWatchFaceDrawManager.updateWatchHandStyle(mAmbient, mMuteMode)
 
             // Check and trigger whether or not timer should be running (only
             // in active mode).
@@ -146,12 +142,13 @@ class MyWatchFace : CanvasWatchFaceService() {
             /* Dim display in mute mode. */
             if (mMuteMode != inMuteMode) {
                 mMuteMode = inMuteMode
-                mWatchFaceManager.updateWatchHandStyle(mAmbient, mMuteMode)
+                mWatchFaceDrawManager.updateWatchHandStyle(mAmbient, mMuteMode)
                 invalidate()
             }
         }
 
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+            Log.v(logTag, "onSurfaceChanged()")
             super.onSurfaceChanged(holder, format, width, height)
 
             /*
@@ -162,8 +159,8 @@ class MyWatchFace : CanvasWatchFaceService() {
             mCenterX = width / 2f
             mCenterY = height / 2f
             val dimensions = Dimensions(width, height)
-            mWatchFaceManager.onDimensionsChange(dimensions)
-            mAnimationManager.onDimensionsChange(dimensions)
+            mWatchFaceDrawManager.onDimensionsChange(dimensions)
+            mAnimationDrawManager.onDimensionsChange(dimensions)
         }
 
         /**
@@ -171,6 +168,7 @@ class MyWatchFace : CanvasWatchFaceService() {
          * used for implementing specific logic to handle the gesture.
          */
         override fun onTapCommand(tapType: Int, x: Int, y: Int, eventTime: Long) {
+            Log.d(logTag, "onTapCommand(tapType: $tapType, x: $x, y: $y, eventTime: $eventTime")
             when (tapType) {
                 WatchFaceService.TAP_TYPE_TOUCH -> {
                     // The user has started touching the screen.
@@ -178,7 +176,7 @@ class MyWatchFace : CanvasWatchFaceService() {
                 WatchFaceService.TAP_TYPE_TOUCH_CANCEL -> {
                     // The user has started a different gesture or otherwise cancelled the tap.
                 }
-                WatchFaceService.TAP_TYPE_TAP -> mAnimationManager.toggleAnimation()
+                WatchFaceService.TAP_TYPE_TAP -> mAnimationDrawManager.toggleAnimation()
             }
             invalidate()
         }
@@ -189,11 +187,11 @@ class MyWatchFace : CanvasWatchFaceService() {
 
             canvas.drawColor(Color.BLACK)
 
-            if(mAnimationManager.draw(canvas, mAmbient)) {
+            if (mAnimationDrawManager.draw(canvas, mAmbient)) {
                 invalidate()
             }
 
-            mWatchFaceManager.draw(canvas, mAmbient)
+            mWatchFaceDrawManager.draw(canvas, mAmbient)
 
         }
 
