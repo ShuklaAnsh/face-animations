@@ -2,4 +2,14 @@
     <string name="app_name">face</string>
     <string name="message">WIP Watch face</string>
     <string name="my_analog_name">WIP Face</string>
+    <string name="title_activity_complication_config">ComplicationConfigActivity</string>
+    <!--
+    This string is used for square devices and overridden by hello_world in
+    values-round/strings.xml for round devices.
+    -->
+    <string name="hello_world">Hello Square World!</string>
+    <string name="left_complication_image_view">left complication image view</string>
+    <string name="left_complication_image_button">left complication image button</string>
+    <string name="right_complication_image_view">Right complication image view</string>
+    <string name="right_complication_image_button">Right complication image button</string>
 </resources>

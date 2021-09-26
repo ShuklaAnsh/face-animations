@@ -4,17 +4,19 @@ import android.content.*
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.Message
+import android.os.*
+import android.support.wearable.complications.ComplicationData
+import android.support.wearable.complications.rendering.ComplicationDrawable
 import android.support.wearable.watchface.CanvasWatchFaceService
 import android.support.wearable.watchface.WatchFaceService
 import android.support.wearable.watchface.WatchFaceStyle
 import android.util.Log
+import android.util.SparseArray
 import android.view.SurfaceHolder
+import dev.anshshukla.face.ComplicationConfigActivity.ComplicationLocation
 import java.lang.ref.WeakReference
 import java.util.*
+
 
 /**
  * Updates rate in milliseconds for interactive mode. We update once a second to advance the
@@ -42,6 +44,70 @@ private const val MSG_UPDATE_TIME = 0
  */
 class MyWatchFace : CanvasWatchFaceService() {
     private val logTag = "MyWatchFace"
+
+    companion object {
+        private const val mTopComplicationId = 0
+        private const val mLeftComplicationId = 1
+        private const val mRightComplicationId = 2
+
+        private val mComplicationIds =
+            intArrayOf(mTopComplicationId, mLeftComplicationId, mRightComplicationId)
+        private val mComplicationSupportedTypes = arrayOf(
+            // top
+            intArrayOf(
+                ComplicationData.TYPE_RANGED_VALUE,
+                ComplicationData.TYPE_EMPTY,
+            ),
+            // left
+            intArrayOf(
+                ComplicationData.TYPE_SHORT_TEXT,
+                ComplicationData.TYPE_RANGED_VALUE,
+                ComplicationData.TYPE_ICON,
+                ComplicationData.TYPE_EMPTY,
+            ),
+            // right
+            intArrayOf(
+                ComplicationData.TYPE_SHORT_TEXT,
+                ComplicationData.TYPE_RANGED_VALUE,
+                ComplicationData.TYPE_ICON,
+                ComplicationData.TYPE_EMPTY,
+            )
+        )
+
+        /**
+         * Used by [ComplicationConfigActivity] to retrieve id for complication locations
+         * and to check if complication location is supported.
+         */
+        fun getComplicationId(
+            complicationLocation: ComplicationLocation
+        ): Int {
+            return when (complicationLocation) {
+                ComplicationLocation.TOP -> mTopComplicationId
+                ComplicationLocation.LEFT -> mLeftComplicationId
+                ComplicationLocation.RIGHT -> mRightComplicationId
+            }
+        }
+
+        /**
+         * Used by [ComplicationConfigActivity] to retrieve all complication ids
+         */
+        fun getComplicationIds(): IntArray {
+            return mComplicationIds
+        }
+
+        /**
+         * Used by [ComplicationConfigActivity] to retrieve complication types supported by location
+         */
+        fun getSupportedComplicationTypes(
+            complicationLocation: ComplicationLocation
+        ): IntArray {
+            return when (complicationLocation) {
+                ComplicationLocation.TOP -> mComplicationSupportedTypes[mTopComplicationId]
+                ComplicationLocation.LEFT -> mComplicationSupportedTypes[mLeftComplicationId]
+                ComplicationLocation.RIGHT -> mComplicationSupportedTypes[mRightComplicationId]
+            }
+        }
+    }
 
     override fun onCreateEngine(): Engine {
         return Engine()
@@ -76,6 +142,31 @@ class MyWatchFace : CanvasWatchFaceService() {
         private var mLowBitAmbient: Boolean = false
         private var mBurnInProtection: Boolean = false
 
+        override fun onComplicationDataUpdate(
+            complicationId: Int, complicationData: ComplicationData?
+        ) {
+            Log.d(logTag, "onComplicationDataUpdate() id: $complicationId")
+
+            // Adds/updates active complication data in the array.
+            mActiveComplicationDataSparseArray.put(complicationId, complicationData)
+
+            // Updates correct ComplicationDrawable with updated data.
+            val complicationDrawable = mComplicationDrawableSparseArray[complicationId]
+            complicationDrawable.setComplicationData(complicationData)
+            invalidate()
+        }
+
+
+        /* Maps active complication ids to the data for that complication. Note: Data will only be
+         * present if the user has chosen a provider via the settings activity for the watch face.
+         */
+        private lateinit var mActiveComplicationDataSparseArray: SparseArray<ComplicationData>
+
+        /* Maps complication ids to corresponding ComplicationDrawable that renders the
+         * the complication data on the watch face.
+         */
+        private lateinit var mComplicationDrawableSparseArray: SparseArray<ComplicationDrawable>
+
         /* Handler to update the time once a second in interactive mode. */
         private val mUpdateTimeHandler = EngineHandler(this)
 
@@ -101,6 +192,40 @@ class MyWatchFace : CanvasWatchFaceService() {
             val dimensions = Dimensions((mCenterX * 2).toInt(), (mCenterX * 2).toInt())
             mAnimationDrawManager = AnimationDrawManager(resources, packageName, dimensions)
             mWatchFaceDrawManager = WatchFaceDrawManager(mCalendar, resources, dimensions)
+
+            initializeComplications()
+        }
+
+        private fun initializeComplications() {
+            mActiveComplicationDataSparseArray = SparseArray(mComplicationIds.size)
+            val topComplicationDrawable =
+                resources.getDrawable(
+                    R.drawable.custom_complication_styles,
+                    theme
+                ) as ComplicationDrawable
+            topComplicationDrawable.setContext(applicationContext)
+
+            val leftComplicationDrawable =
+                resources.getDrawable(
+                    R.drawable.custom_complication_styles,
+                    theme
+                ) as ComplicationDrawable
+            leftComplicationDrawable.setContext(applicationContext)
+
+            val rightComplicationDrawable =
+                resources.getDrawable(
+                    R.drawable.custom_complication_styles,
+                    theme
+                ) as ComplicationDrawable
+            rightComplicationDrawable.setContext(applicationContext)
+
+            mComplicationDrawableSparseArray = SparseArray(mComplicationIds.size)
+            mComplicationDrawableSparseArray.put(mTopComplicationId, topComplicationDrawable)
+            mComplicationDrawableSparseArray.put(mLeftComplicationId, leftComplicationDrawable)
+            mComplicationDrawableSparseArray.put(mRightComplicationId, rightComplicationDrawable)
+
+            setActiveComplications(*mComplicationIds)
+
         }
 
         override fun onDestroy() {
@@ -117,6 +242,19 @@ class MyWatchFace : CanvasWatchFaceService() {
             mBurnInProtection = properties.getBoolean(
                 WatchFaceService.PROPERTY_BURN_IN_PROTECTION, false
             )
+            // Updates complications to properly render in ambient mode based on the
+            // screen's capabilities.
+            // Updates complications to properly render in ambient mode based on the
+            // screen's capabilities.
+            var complicationDrawable: ComplicationDrawable?
+
+            for (idx in mComplicationIds.indices) {
+                complicationDrawable = mComplicationDrawableSparseArray.valueAt(idx)
+                if (complicationDrawable != null) {
+                    complicationDrawable.setLowBitAmbient(mLowBitAmbient)
+                    complicationDrawable.setBurnInProtection(mBurnInProtection)
+                }
+            }
         }
 
         override fun onTimeTick() {
@@ -129,6 +267,10 @@ class MyWatchFace : CanvasWatchFaceService() {
             mAmbient = inAmbientMode
 
             mWatchFaceDrawManager.updateWatchHandStyle(mAmbient, mMuteMode)
+
+            for (complicationId in mComplicationIds) {
+                mComplicationDrawableSparseArray.get(complicationId).setInAmbientMode(mAmbient)
+            }
 
             // Check and trigger whether or not timer should be running (only
             // in active mode).
@@ -158,6 +300,29 @@ class MyWatchFace : CanvasWatchFaceService() {
              */
             mCenterX = width / 2f
             mCenterY = height / 2f
+
+            val sizeOfRoundComplications = width / 4
+            val horizontalOffset: Float = (mCenterX - sizeOfRoundComplications) / 2
+            val verticalOffset: Float = mCenterX - sizeOfRoundComplications / 2
+            val leftBounds =  // Left, Top, Right, Bottom
+                Rect(
+                    horizontalOffset.toInt(),
+                    verticalOffset.toInt(),
+                    (horizontalOffset + sizeOfRoundComplications).toInt(),
+                    (verticalOffset + sizeOfRoundComplications).toInt()
+                )
+            mComplicationDrawableSparseArray[mLeftComplicationId].bounds = leftBounds
+
+            val rightBounds =  // Left, Top, Right, Bottom
+                Rect(
+                    (mCenterX + horizontalOffset).toInt(),
+                    verticalOffset.toInt(),
+                    (mCenterX + horizontalOffset + sizeOfRoundComplications).toInt(),
+                    (verticalOffset + sizeOfRoundComplications).toInt()
+                )
+
+            mComplicationDrawableSparseArray[mRightComplicationId].bounds = rightBounds
+
             val dimensions = Dimensions(width, height)
             mWatchFaceDrawManager.onDimensionsChange(dimensions)
             mAnimationDrawManager.onDimensionsChange(dimensions)
@@ -181,6 +346,42 @@ class MyWatchFace : CanvasWatchFaceService() {
             invalidate()
         }
 
+        /*
+         * Determines if tap inside a complication area or returns -1.
+         */
+        private fun getTappedComplicationId(x: Int, y: Int): Int {
+            var complicationId: Int
+            var complicationData: ComplicationData?
+            var complicationDrawable: ComplicationDrawable
+            val currentTimeMillis = System.currentTimeMillis()
+            for (idx in mComplicationIds.indices) {
+                complicationId = mComplicationIds[idx]
+                complicationData = mActiveComplicationDataSparseArray.valueAt(idx)
+                if (complicationData != null
+                    && complicationData.isActive(currentTimeMillis)
+                    && complicationData.type != ComplicationData.TYPE_NOT_CONFIGURED
+                    && complicationData.type != ComplicationData.TYPE_EMPTY
+                ) {
+                    complicationDrawable = mComplicationDrawableSparseArray.valueAt(idx)
+                    val complicationBoundingRect = complicationDrawable.bounds
+                    if (complicationBoundingRect.width() > 0) {
+                        if (complicationBoundingRect.contains(x, y)) {
+                            return complicationId
+                        }
+                    } else {
+                        Log.e(logTag, "Not a recognized complication id.")
+                    }
+                }
+            }
+            return -1
+        }
+
+        // Fires PendingIntent associated with complication (if it has one).
+        private fun onComplicationTap(complicationId: Int) {
+            // TODO: Step 5, onComplicationTap()
+            Log.d(logTag, "onComplicationTap()")
+        }
+
         override fun onDraw(canvas: Canvas, bounds: Rect) {
             val now = System.currentTimeMillis()
             mCalendar.timeInMillis = now
@@ -191,8 +392,13 @@ class MyWatchFace : CanvasWatchFaceService() {
                 invalidate()
             }
 
-            mWatchFaceDrawManager.draw(canvas, mAmbient)
+            drawComplications(canvas, now)
 
+            mWatchFaceDrawManager.draw(canvas, mAmbient)
+        }
+
+        private fun drawComplications(canvas: Canvas, currentTimeMillis: Long) {
+            // TODO: Step 4, drawComplications()
         }
 
         override fun onVisibilityChanged(visible: Boolean) {

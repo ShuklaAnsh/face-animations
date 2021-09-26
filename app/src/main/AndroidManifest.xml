@@ -5,26 +5,51 @@
     <!-- Required to act as a custom watch face. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <uses-feature android:name="android.hardware.type.watch" />
+
     <!-- Required for complications to receive complication data and open the provider chooser. -->
     <uses-permission android:name="com.google.android.wearable.permission.RECEIVE_COMPLICATION_DATA" />
 
-    <uses-feature android:name="android.hardware.type.watch" />
-
     <application
+        android:fullBackupContent="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault"
-        android:fullBackupContent="true">
+        android:allowBackup="true">
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="true" />
+
+        <!--
+               Set to true if your app is Standalone, that is, it does not require the handheld
+               app to run.
+        -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
+
+        <!-- Adds addWearableSupportHelperActivity -->
+        <activity android:name="android.support.wearable.complications.ComplicationHelperActivity"/>
+        
+        <activity
+            android:name=".ComplicationConfigActivity"
+            android:exported="true"
+            android:label="@string/title_activity_complication_config">
+            <intent-filter>
+                <action android:name="com.example.android.wearable.watchface.CONFIG_COMPLICATION"/>
+                <category android:name="com.google.android.wearable.watchface.category.WEARABLE_CONFIGURATION"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+
+        </activity>
+
         <service
             android:name=".MyWatchFace"
+            android:exported="true"
             android:label="@string/my_analog_name"
-            android:permission="android.permission.BIND_WALLPAPER"
-            android:exported="true">
+            android:permission="android.permission.BIND_WALLPAPER">
 
             <!--
             By default, Watchfaces on rectangular devices will be run in a emulation mode where they
