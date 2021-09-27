@@ -22,9 +22,8 @@ import android.content.Intent
 
 import android.content.ComponentName
 
-import android.app.PendingIntent
 import android.app.PendingIntent.CanceledException
-
+import androidx.core.content.res.ResourcesCompat
 
 /**
  * Updates rate in milliseconds for interactive mode. We update once a second to advance the
@@ -208,21 +207,24 @@ class MyWatchFace : CanvasWatchFaceService() {
             Log.d(logTag, "initializeComplications()")
             mActiveComplicationDataSparseArray = SparseArray(mComplicationIds.size)
             val topComplicationDrawable =
-                resources.getDrawable(
+                ResourcesCompat.getDrawable(
+                    resources,
                     R.drawable.custom_complication_styles,
                     theme
                 ) as ComplicationDrawable
             topComplicationDrawable.setContext(applicationContext)
 
             val leftComplicationDrawable =
-                resources.getDrawable(
+                ResourcesCompat.getDrawable(
+                    resources,
                     R.drawable.custom_complication_styles,
                     theme
                 ) as ComplicationDrawable
             leftComplicationDrawable.setContext(applicationContext)
 
             val rightComplicationDrawable =
-                resources.getDrawable(
+                ResourcesCompat.getDrawable(
+                    resources,
                     R.drawable.custom_complication_styles,
                     theme
                 ) as ComplicationDrawable
@@ -340,14 +342,16 @@ class MyWatchFace : CanvasWatchFaceService() {
          * Captures tap event (and tap type). The [WatchFaceService.TAP_TYPE_TAP] case can be
          * used for implementing specific logic to handle the gesture.
          */
-        override fun onTapCommand(tapType: Int, x: Int, y: Int, eventTime: Long) {
+        override fun onTapCommand(@TapType tapType: Int, x: Int, y: Int, eventTime: Long) {
             Log.d(logTag, "onTapCommand(tapType: $tapType, x: $x, y: $y, eventTime: $eventTime")
             when (tapType) {
                 WatchFaceService.TAP_TYPE_TOUCH -> {
                     // The user has started touching the screen.
+                    // startTapHighlight?
                 }
                 WatchFaceService.TAP_TYPE_TOUCH_CANCEL -> {
                     // The user has started a different gesture or otherwise cancelled the tap.
+                    // stopTapHighlight?
                 }
                 WatchFaceService.TAP_TYPE_TAP -> {
                     val tappedComplicationId = getTappedComplicationId(x, y)

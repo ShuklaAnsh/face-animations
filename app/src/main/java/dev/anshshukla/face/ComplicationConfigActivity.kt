@@ -16,6 +16,7 @@ import dev.anshshukla.face.databinding.ActivityComplicationConfigBinding
 import java.util.concurrent.Executors
 import android.support.wearable.complications.ComplicationHelperActivity
 import android.support.wearable.complications.ProviderChooserIntent
+import androidx.core.content.res.ResourcesCompat
 
 class ComplicationConfigActivity : Activity(), View.OnClickListener {
     private val logTag = "ComplicationConfigActivity"
@@ -64,7 +65,7 @@ class ComplicationConfigActivity : Activity(), View.OnClickListener {
         binding = ActivityComplicationConfigBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        mDefaultAddComplicationDrawable = resources.getDrawable(R.drawable.add_complication, theme)
+        mDefaultAddComplicationDrawable = ResourcesCompat.getDrawable(resources, R.drawable.add_complication, theme)!!
 
         mLeftComplicationId =
             MyWatchFace.getComplicationId(ComplicationLocation.LEFT)
@@ -189,12 +190,13 @@ class ComplicationConfigActivity : Activity(), View.OnClickListener {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent) {
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        Log.d(logTag, "onActivityResult(requestCode: $requestCode, resultCode: $requestCode, data: $data)")
         if (requestCode == mComplicationConfigRequestCode && resultCode == RESULT_OK) {
 
             // Retrieves information for selected Complication provider.
             val complicationProviderInfo: ComplicationProviderInfo? =
-                data.getParcelableExtra(ProviderChooserIntent.EXTRA_PROVIDER_INFO)
+                data?.getParcelableExtra(ProviderChooserIntent.EXTRA_PROVIDER_INFO)
             Log.d(logTag, "Provider: $complicationProviderInfo")
             if (mSelectedComplicationId >= 0) {
                 updateComplicationViews(mSelectedComplicationId, complicationProviderInfo)
